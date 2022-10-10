@@ -45,10 +45,10 @@ func main(){
 	baseAddr = getBaseAddr(handle, modelName)
 	fmt.Printf("基址:0x%X\n", baseAddr)
 
-	//// 修改阳光值
+	// 修改阳光值
 	//sunshineOffset := []int64{0x355E0C,0x868,0x5578}
 	//writeMemory(handle, baseAddr, sunshineOffset, uint32(9999))
-	//
+
 	//// 修改金币值
 	//moneyOffset := []int64{0x355E0C,0x950,0x50}
 	//writeMemory(handle, baseAddr, moneyOffset, uint32(56780))
@@ -143,7 +143,7 @@ func getProcPid(PROCESS string) int {
 // 根据进程名和进程ID获取基址
 func getBaseAddr(hd windows.Handle, modelName string) windows.Handle {
 	var base windows.Handle
-	var module [10000]windows.Handle
+	var module [100]windows.Handle
 	var cbNeeded uint32
 
 
