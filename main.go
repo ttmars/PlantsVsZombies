@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"golang.org/x/sys/windows"
 	"log"
@@ -61,7 +60,7 @@ func createApp()  {
 	myApp := app.NewWithID("hello,world!")				// 创建APP
 	myWindow := myApp.NewWindow("植物大战僵尸辅助")			// 创建窗口
 
-	myApp.SetIcon(theme.FyneLogo())
+	//myApp.SetIcon(theme.FyneLogo())
 	myWindow.Resize(fyne.NewSize(250,150))			// 设置窗口大小
 	myWindow.CenterOnScreen()								// 窗口居中显示
 	myWindow.SetMaster()									// 设置为主窗口
