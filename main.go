@@ -143,7 +143,7 @@ func getProcPid(PROCESS string) int {
 // 根据进程名和进程ID获取基址
 func getBaseAddr(hd windows.Handle, modelName string) windows.Handle {
 	var base windows.Handle
-	var module [10]windows.Handle
+	var module [10000]windows.Handle
 	var cbNeeded uint32
 
 
