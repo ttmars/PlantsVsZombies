@@ -56,11 +56,11 @@ func main(){
 
 // 无冷却监测
 func modifyCD(hd windows.Handle, baseAddr windows.Handle){
+	baseAddr = windows.Handle(0x026033C0)
+	cdOffset := []int64{0x0,0x8,0x15C,0x4C}
 	var newValue uint32 = 10000			// 冷却区间，豌豆射手为0~750，每种植物冷却上线不一致
 	for{
 		if openNOCD {
-			cdOffset := []int64{0x00061C0C,0x198,0x18,0x20,0x15C,0x4C}
-
 			addr,_ := readMemory(hd, baseAddr, cdOffset)
 			sli := make([]byte, 4)
 			binary.LittleEndian.PutUint32(sli, newValue)
