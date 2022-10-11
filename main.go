@@ -54,13 +54,38 @@ func main(){
 	createApp()
 }
 
+// 无冷却监测1
+func modifyCD1(hd windows.Handle, baseAddr windows.Handle){
+	baseAddr = 0x2D57FCA0
+	var newValue uint32 = 10000			// 冷却区间，豌豆射手为0~750，每种植物冷却上线不一致
+	for{
+		if openNOCD {
+			//cdOffset := []int64{0x0003DAD8,0x14,0x4,0x15C,0x4C}
+			//cdOffset := []int64{0x4,0x0,0x158,0x4C}
+			cdOffset := []int64{0x00061C0C,0x198,0x18,0x20,0x15C,0x4C}
+
+			addr,_ := readMemory(hd, baseAddr, cdOffset)
+			sli := make([]byte, 4)
+			binary.LittleEndian.PutUint32(sli, newValue)
+			n := 10						// n表示植物槽，前n个植物槽都无冷却
+			for i:=0;i<n;i++{
+				err = windows.WriteProcessMemory(hd, addr+uintptr(80*i), &sli[0],4, nil)
+				if err != nil {
+					log.Println(err)
+				}
+			}
+		}
+		time.Sleep(time.Millisecond * 500)
+	}
+}
+
 // 无冷却监测
 func modifyCD(hd windows.Handle, baseAddr windows.Handle){
 	var newValue uint32 = 10000			// 冷却区间，豌豆射手为0~750，每种植物冷却上线不一致
 	for{
 		if openNOCD {
-			cdOffset := []int64{0x0003DAD8,0x14,0x4,0x15C,0x4C}
-			//cdOffset := []int64{0x0003DAD8,0x8,0x4,0x15C,0x4C}
+			//cdOffset := []int64{0x0003DAD8,0x14,0x4,0x15C,0x4C}
+			cdOffset := []int64{0x0003DAD8,0x8,0x4,0x15C,0x4C}
 
 			addr,_ := readMemory(hd, baseAddr, cdOffset)
 			sli := make([]byte, 4)
