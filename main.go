@@ -18,45 +18,66 @@ import (
 )
 
 var (
-	err error
-	modelName string
+	modelName = "PlantsVsZombies.exe"
+	pid int
 	handle windows.Handle
 	baseAddr windows.Handle
 	openNOCD bool = false			// 无冷却开关
+	err error
 )
 
 func init()  {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
-}
-
-func main(){
-	// 获取pid
-	modelName = "PlantsVsZombies.exe"
-	fmt.Printf("程序名称:%s\n", modelName)
-	pid := getProcPid(modelName)
-	fmt.Println("pid:", pid)
-
-	// 获取进程句柄
+	pid = getProcPid(modelName)
 	handle,err = windows.OpenProcess(0x1F0FFF, false, uint32(pid))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer windows.CloseHandle(handle)
-	fmt.Println("句柄:",handle)
-
-	// 获取模块基址
 	baseAddr = getBaseAddr(handle, modelName)
+}
+
+func main(){
+	fmt.Printf("程序名称:%s\n", modelName)
+	fmt.Println("pid:", pid)
+	fmt.Println("句柄:",handle)
 	fmt.Printf("基址:0x%X\n", baseAddr)
 
-	// 无冷却
 	go modifyCD(handle, baseAddr)
-
 	createApp()
+}
+
+// 获取THREADSTACK0基址
+func getTHREADSTACK0Addr(pid string) uintptr{
+	task := exec.Command("threadstack.exe", pid)
+	output, err := task.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+	addr := strings.Split(strings.Split(string(output), "ADDRESS")[1], "\n")[0][2:]
+	addr = strings.ReplaceAll(addr, "\r", "")
+	fmt.Printf("THREADSTACK0基址:%v\n", addr)
+
+	r,err := strconv.ParseUint(addr, 0, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return uintptr(r)
 }
 
 // 无冷却监测
 func modifyCD(hd windows.Handle, baseAddr windows.Handle){
-	baseAddr = windows.Handle(0x026033C0)
+	// 通过获取THREADSTACK0，重新计算基址
+	THREADSTACK0 := getTHREADSTACK0Addr(strconv.Itoa(pid))
+	data := make([]byte, 4)
+	err = windows.ReadProcessMemory(hd, uintptr(THREADSTACK0)-uintptr(0x00000204), &data[0], 4, nil)
+	if err != nil {
+		log.Println(err)
+	}
+	value := binary.LittleEndian.Uint32(data)
+	baseAddr = windows.Handle(value)
+	//fmt.Printf("0x%X\n", baseAddr)
+
+	//baseAddr = windows.Handle(0x19ff7c)
 	cdOffset := []int64{0x0,0x8,0x15C,0x4C}
 	var newValue uint32 = 10000			// 冷却区间，豌豆射手为0~750，每种植物冷却上线不一致
 	for{
