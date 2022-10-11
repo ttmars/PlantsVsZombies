@@ -6,12 +6,14 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"golang.org/x/sys/windows"
 	"log"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 )
 
@@ -20,6 +22,7 @@ var (
 	modelName string
 	handle windows.Handle
 	baseAddr windows.Handle
+	openNOCD bool = false			// 无冷却开关
 )
 
 func init()  {
@@ -45,58 +48,38 @@ func main(){
 	baseAddr = getBaseAddr(handle, modelName)
 	fmt.Printf("基址:0x%X\n", baseAddr)
 
-	// 修改阳光值
-	//sunshineOffset := []int64{0x355E0C,0x868,0x5578}
-	//writeMemory(handle, baseAddr, sunshineOffset, uint32(9999))
-
-	//// 修改金币值
-	//moneyOffset := []int64{0x355E0C,0x950,0x50}
-	//writeMemory(handle, baseAddr, moneyOffset, uint32(56780))
+	// 无冷却
+	go modifyCD(handle, baseAddr)
 
 	createApp()
 }
 
-func createApp()  {
-	myApp := app.NewWithID("hello,world!")				// 创建APP
-	myWindow := myApp.NewWindow("植物大战僵尸辅助")			// 创建窗口
-
-	//myApp.SetIcon(theme.FyneLogo())
-	myWindow.Resize(fyne.NewSize(250,150))			// 设置窗口大小
-	myWindow.CenterOnScreen()								// 窗口居中显示
-	myWindow.SetMaster()									// 设置为主窗口
-
-	sunshineLabel := widget.NewLabel("sunshine")
-	sunshineEntry := widget.NewEntry()
-	sunshineButton := widget.NewButton("modify", func() {
-		data, err := strconv.Atoi(sunshineEntry.Text)
-		if err != nil {
-			return
+// 无冷却监测
+func modifyCD(hd windows.Handle, baseAddr windows.Handle){
+	var newValue uint32 = 10000			// 冷却区间，豌豆射手为0~750，每种植物冷却上线不一致
+	for{
+		if openNOCD {
+			cdOffset := []int64{0x00061C0C,0x198,0x18,0x20,0x15C,0x4C}
+			addr,_ := readMemory(hd, baseAddr, cdOffset)
+			sli := make([]byte, 4)
+			binary.LittleEndian.PutUint32(sli, newValue)
+			n := 10						// n表示植物槽，前n个植物槽都无冷却
+			for i:=0;i<n;i++{
+				err = windows.WriteProcessMemory(hd, addr+uintptr(80*i), &sli[0],4, nil)
+				if err != nil {
+					log.Println(err)
+				}
+			}
 		}
-		sunshineOffset := []int64{0x355E0C,0x868,0x5578}
-		writeMemory(handle, baseAddr, sunshineOffset, uint32(data))
-	})
-	c1 := container.NewGridWithColumns(3, sunshineLabel, sunshineEntry, sunshineButton)
-
-	moneyLabel := widget.NewLabel("money")
-	moneyEntry := widget.NewEntry()
-	moneyButton := widget.NewButton("modify", func() {
-		data, err := strconv.Atoi(moneyEntry.Text)
-		if err != nil {
-			return
-		}
-		moneyOffset := []int64{0x355E0C,0x950,0x50}
-		writeMemory(handle, baseAddr, moneyOffset, uint32(data))
-	})
-	c2 := container.NewGridWithColumns(3, moneyLabel, moneyEntry, moneyButton)
-
-	c := container.NewVBox(c1, c2)
-	myWindow.SetContent(c)			// 创建导航
-	myWindow.ShowAndRun()			// 事件循环
+		time.Sleep(time.Millisecond * 500)
+	}
 }
 
-func writeMemory(hd windows.Handle, baseAddr windows.Handle, offset []int64, newValue uint32) (uintptr, uint32){
-	// 读取实际地址和值
-	addr,value := readMemory(hd, baseAddr, offset)
+// 修改阳光
+func modifySunshine(hd windows.Handle, baseAddr windows.Handle, newValue uint32){
+	//sunshineOffset := []int64{0x355E0C,0x868,0x5578}
+	sunshineOffset := []int64{0x355E0C,0x320, 0x18, 0x0, 0x8, 0x5578}
+	addr,_ := readMemory(hd, baseAddr, sunshineOffset)
 
 	// 写入新值
 	sli := make([]byte, 4)
@@ -105,9 +88,23 @@ func writeMemory(hd windows.Handle, baseAddr windows.Handle, offset []int64, new
 	if err != nil {
 		log.Println(err)
 	}
-	return addr,value
 }
 
+// 修改金币
+func modifyMoney(hd windows.Handle, baseAddr windows.Handle, newValue uint32){
+	moneyOffset := []int64{0x355E0C,0x950,0x50}
+	addr,_ := readMemory(hd, baseAddr, moneyOffset)
+
+	// 写入新值
+	sli := make([]byte, 4)
+	binary.LittleEndian.PutUint32(sli, newValue)
+	err = windows.WriteProcessMemory(hd, addr, &sli[0],4, nil)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+// 根据基址和偏移读取实际地址和内容
 func readMemory(hd windows.Handle, baseAddr windows.Handle, offset[]int64) (uintptr, uint32) {
 	var addr uintptr
 	var value uint32
@@ -163,4 +160,54 @@ func getBaseAddr(hd windows.Handle, modelName string) windows.Handle {
 		}
 	}
 	return base
+}
+
+// 图形界面
+func createApp()  {
+	myApp := app.NewWithID("hello,world!")				// 创建APP
+	myWindow := myApp.NewWindow("植物大战僵尸辅助")			// 创建窗口
+
+	//myApp.SetIcon(theme.FyneLogo())
+	myWindow.Resize(fyne.NewSize(250,150))			// 设置窗口大小
+	myWindow.CenterOnScreen()								// 窗口居中显示
+	myWindow.SetMaster()									// 设置为主窗口
+
+	// 阳光
+	sunshineLabel := widget.NewLabel("Sunshine")
+	sunshineEntry := widget.NewEntry()
+	sunshineButton := widget.NewButton("modify", func() {
+		data, err := strconv.Atoi(sunshineEntry.Text)
+		if err != nil {
+			return
+		}
+		modifySunshine(handle, baseAddr, uint32(data))
+	})
+	c1 := container.NewGridWithColumns(3, sunshineLabel, sunshineEntry, sunshineButton)
+
+	// 金币
+	moneyLabel := widget.NewLabel("Money")
+	moneyEntry := widget.NewEntry()
+	moneyButton := widget.NewButton("modify", func() {
+		data, err := strconv.Atoi(moneyEntry.Text)
+		if err != nil {
+			return
+		}
+		modifyMoney(handle, baseAddr, uint32(data))
+	})
+	c2 := container.NewGridWithColumns(3, moneyLabel, moneyEntry, moneyButton)
+
+	// 冷却
+	CDLabel := widget.NewLabel("ZeroCD")
+	CDCheck := widget.NewCheck("open", func(b bool) {
+		if b {
+			openNOCD = true
+		}else {
+			openNOCD = false
+		}
+	})
+	c3 := container.NewGridWithColumns(3, CDLabel, layout.NewSpacer(), CDCheck)
+
+	c := container.NewVBox(c1, c2, c3)
+	myWindow.SetContent(c)			// 创建导航
+	myWindow.ShowAndRun()			// 事件循环
 }
