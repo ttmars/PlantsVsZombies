@@ -21,7 +21,7 @@ var (
 	modelName = "PlantsVsZombies.exe"
 	pid int
 	handle windows.Handle
-	baseAddr windows.Handle
+	baseAddr uintptr
 	openNOCD bool = false			// 无冷却开关
 	err error
 )
@@ -65,32 +65,17 @@ func getTHREADSTACK0Addr(pid string) uintptr{
 }
 
 // 无冷却监测
-func modifyCD(hd windows.Handle, baseAddr windows.Handle){
+func modifyCD(hd windows.Handle, baseAddr uintptr){
 	// 通过获取THREADSTACK0，重新计算基址
 	THREADSTACK0 := getTHREADSTACK0Addr(strconv.Itoa(pid))
-	data := make([]byte, 4)
-	err = windows.ReadProcessMemory(hd, uintptr(THREADSTACK0)-uintptr(0x00000204), &data[0], 4, nil)
-	if err != nil {
-		log.Println(err)
-	}
-	value := binary.LittleEndian.Uint32(data)
-	baseAddr = windows.Handle(value)
-	//fmt.Printf("0x%X\n", baseAddr)
-
-	//baseAddr = windows.Handle(0x19ff7c)
+	value := readUint32(hd, THREADSTACK0-uintptr(0x00000204))
+	baseAddr = uintptr(value)
 	cdOffset := []int64{0x0,0x8,0x15C,0x4C}
-	var newValue uint32 = 10000			// 冷却区间，豌豆射手为0~750，每种植物冷却上线不一致
 	for{
 		if openNOCD {
-			addr,_ := readMemory(hd, baseAddr, cdOffset)
-			sli := make([]byte, 4)
-			binary.LittleEndian.PutUint32(sli, newValue)
-			n := 10						// n表示植物槽，前n个植物槽都无冷却
-			for i:=0;i<n;i++{
-				err = windows.WriteProcessMemory(hd, addr+uintptr(80*i), &sli[0],4, nil)
-				if err != nil {
-					log.Println(err)
-				}
+			addr := readDynamicAddr(hd, baseAddr, cdOffset)
+			for i:=0; i<10; i++ {											// 10个植物卡片
+				writeUint32(hd, addr+uintptr(80*i), 10000)			// 向日葵冷却周期为0~750，0代表冷却完成；取10000代表冷却上限
 			}
 		}
 		time.Sleep(time.Millisecond * 500)
@@ -98,53 +83,50 @@ func modifyCD(hd windows.Handle, baseAddr windows.Handle){
 }
 
 // 修改阳光
-func modifySunshine(hd windows.Handle, baseAddr windows.Handle, newValue uint32){
-	//sunshineOffset := []int64{0x355E0C,0x868,0x5578}
+func modifySunshine(hd windows.Handle, baseAddr uintptr, newValue uint32){
 	sunshineOffset := []int64{0x355E0C,0x320, 0x18, 0x0, 0x8, 0x5578}
-	addr,_ := readMemory(hd, baseAddr, sunshineOffset)
-
-	// 写入新值
-	sli := make([]byte, 4)
-	binary.LittleEndian.PutUint32(sli, newValue)
-	err = windows.WriteProcessMemory(hd, addr, &sli[0],4, nil)
-	if err != nil {
-		log.Println(err)
-	}
+	addr := readDynamicAddr(hd, baseAddr, sunshineOffset)
+	writeUint32(hd, addr, newValue)
 }
 
 // 修改金币
-func modifyMoney(hd windows.Handle, baseAddr windows.Handle, newValue uint32){
+func modifyMoney(hd windows.Handle, baseAddr uintptr, newValue uint32){
 	moneyOffset := []int64{0x355E0C,0x950,0x50}
-	addr,_ := readMemory(hd, baseAddr, moneyOffset)
+	addr := readDynamicAddr(hd, baseAddr, moneyOffset)
+	writeUint32(hd, addr, newValue)
+}
 
-	// 写入新值
+// 根据进程句柄和地址，写入一个4字节整形
+func writeUint32(hd windows.Handle, addr uintptr, value uint32) {
 	sli := make([]byte, 4)
-	binary.LittleEndian.PutUint32(sli, newValue)
+	binary.LittleEndian.PutUint32(sli, value)
 	err = windows.WriteProcessMemory(hd, addr, &sli[0],4, nil)
 	if err != nil {
-		log.Println(err)
+		log.Println("写入内存失败！")
 	}
 }
 
-// 根据基址和偏移读取实际地址和内容
-func readMemory(hd windows.Handle, baseAddr windows.Handle, offset[]int64) (uintptr, uint32) {
+// 根据进程句柄和地址，读取4字节整形，可解释为整数值或指针值
+func readUint32(hd windows.Handle, addr uintptr) uint32 {
+	data := make([]byte, 4)
+	err = windows.ReadProcessMemory(hd, addr, &data[0], 4, nil)
+	if err != nil {
+		log.Println("读取内存失败！")
+	}
+	return binary.LittleEndian.Uint32(data)
+}
+
+// 根据基址和偏移读取实际的动态地址
+func readDynamicAddr(hd windows.Handle, baseAddr uintptr, offset[]int64) uintptr {
 	var addr uintptr
 	var value uint32
-	tmpAddr := uintptr(baseAddr)
+	tmpAddr := baseAddr
 	for _,v := range offset {
-		//func ReadProcessMemory(process Handle, baseAddress uintptr, buffer *byte, size uintptr, numberOfBytesRead *uintptr) (err error) {
-		var readSize uintptr
-		data := make([]byte, 4)
 		addr = tmpAddr + uintptr(v)
-		err = windows.ReadProcessMemory(hd, addr, &data[0], 4, &readSize)
-		if err != nil {
-			log.Println(err)
-		}
-		value = binary.LittleEndian.Uint32(data)
-		//fmt.Printf("基址:0x%X+偏移:0x%X=地址:0x%X	16进制值:0x%X 10进制值:%d\n", tmpAddr, v, addr, value, value)
+		value = readUint32(hd, addr)
 		tmpAddr = uintptr(value)
 	}
-	return addr, value
+	return addr
 }
 
 // 根据程序名获取进程ID
@@ -160,11 +142,10 @@ func getProcPid(PROCESS string) int {
 }
 
 // 根据进程名和进程ID获取基址
-func getBaseAddr(hd windows.Handle, modelName string) windows.Handle {
+func getBaseAddr(hd windows.Handle, modelName string) uintptr {
 	var base windows.Handle
 	var module [100]windows.Handle
 	var cbNeeded uint32
-
 
 	err = windows.EnumProcessModules(hd, &module[0], uint32(unsafe.Sizeof(module)), &cbNeeded)
 	if err != nil {
@@ -181,7 +162,7 @@ func getBaseAddr(hd windows.Handle, modelName string) windows.Handle {
 			base =  module[i]
 		}
 	}
-	return base
+	return uintptr(base)
 }
 
 // 图形界面
