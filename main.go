@@ -305,7 +305,7 @@ func createApp()  {
 	c2 := container.NewGridWithColumns(3, moneyLabel, moneyEntry, moneyButton)
 
 	// 冷却
-	CDLabel := widget.NewLabel("卡槽无CD")
+	CDLabel := widget.NewLabel("卡槽自动刷新")
 	CDCheck := widget.NewCheck("开启", func(b bool) {
 		if b {
 			openZeroCD(handle, baseAddr)
@@ -325,7 +325,7 @@ func createApp()  {
 	})
 	c4 := container.NewGridWithColumns(3, lockSunshineLabel, layout.NewSpacer(), lockSunshineCheck)
 
-	lockBloodLabel := widget.NewLabel("所有植物锁血")
+	lockBloodLabel := widget.NewLabel("植物锁血")
 	lockBloodCheck := widget.NewCheck("开启", func(b bool) {
 		if b {
 			lockPlantsBlood(handle, baseAddr)
@@ -345,7 +345,7 @@ func createApp()  {
 	})
 	c6 := container.NewGridWithColumns(3, lockMagneticLabel, layout.NewSpacer(), lockMagneticCheck)
 
-	lockCannonLabel := widget.NewLabel("加农炮无CD")
+	lockCannonLabel := widget.NewLabel("加农炮零冷却")
 	lockCannonCheck := widget.NewCheck("开启", func(b bool) {
 		if b {
 			lockCannonCD(handle, baseAddr)
@@ -356,7 +356,7 @@ func createApp()  {
 	c7 := container.NewGridWithColumns(3, lockCannonLabel, layout.NewSpacer(), lockCannonCheck)
 
 	// 末日菇
-	lockDoomLabel := widget.NewLabel("末日菇无CD")
+	lockDoomLabel := widget.NewLabel("修复末日菇弹坑")
 	lockDoomCheck := widget.NewCheck("开启", func(b bool) {
 		if b {
 			lockDoomCD(handle, baseAddr)
