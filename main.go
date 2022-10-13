@@ -102,7 +102,7 @@ func unlockPlantsBlood(hd windows.Handle, baseAddr uintptr)  {
 
 // 锁定阳光值
 func lockSunshine(hd windows.Handle, baseAddr uintptr)  {
-	modifySunshine(hd, baseAddr, uint32(9999))
+	modifySunshine(hd, baseAddr, uint32(9990))
 	//data := []byte{0x01, 0xDE}
 	data := []byte{0x90, 0x90}
 	writeNBytes(hd, baseAddr+uintptr(0x27694), data)
