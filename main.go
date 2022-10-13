@@ -375,12 +375,14 @@ func createApp()  {
 			lockBloodCheck.SetChecked(true)
 			lockMagneticCheck.SetChecked(true)
 			lockCannonCheck.SetChecked(true)
+			lockDoomCheck.SetChecked(true)
 		}else {
 			CDCheck.SetChecked(false)
 			lockSunshineCheck.SetChecked(false)
 			lockBloodCheck.SetChecked(false)
 			lockMagneticCheck.SetChecked(false)
 			lockCannonCheck.SetChecked(false)
+			lockDoomCheck.SetChecked(false)
 		}
 	})
 	c0 := container.NewGridWithColumns(3, openAllLabel, layout.NewSpacer(), openAllCheck)
