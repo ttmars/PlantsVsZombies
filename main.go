@@ -45,6 +45,18 @@ func main(){
 	createApp()
 }
 
+// 锁定末日蘑CD，默认值3000,30秒
+func lockDoomCD(hd windows.Handle, baseAddr uintptr)  {
+	data := []byte{0x90, 0x90, 0x90, 0x90, 0x90, 0x90}
+	writeNBytes(hd, baseAddr+uintptr(0x293C9), data)
+}
+
+// 解除锁定末日蘑CD
+func unlockDoomCD(hd windows.Handle, baseAddr uintptr)  {
+	data := []byte{0x83, 0x7E, 0x18, 0x00, 0x75, 0x05}
+	writeNBytes(hd, baseAddr+uintptr(0x293C9), data)
+}
+
 // 锁定加农炮CD，默认值3000,30秒
 func lockCannonCD(hd windows.Handle, baseAddr uintptr)  {
 	data := []byte{0xC7, 0x47, 0x54, 0x00, 0x00, 0x00, 0x00}
@@ -343,6 +355,17 @@ func createApp()  {
 	})
 	c7 := container.NewGridWithColumns(3, lockCannonLabel, layout.NewSpacer(), lockCannonCheck)
 
+	// 末日菇
+	lockDoomLabel := widget.NewLabel("末日菇无CD")
+	lockDoomCheck := widget.NewCheck("开启", func(b bool) {
+		if b {
+			lockDoomCD(handle, baseAddr)
+		}else {
+			unlockDoomCD(handle, baseAddr)
+		}
+	})
+	c8 := container.NewGridWithColumns(3, lockDoomLabel, layout.NewSpacer(), lockDoomCheck)
+
 	// 一键开启/关闭
 	openAllLabel := widget.NewLabel("一键开启")
 	openAllCheck := widget.NewCheck("开启", func(b bool) {
@@ -362,7 +385,7 @@ func createApp()  {
 	})
 	c0 := container.NewGridWithColumns(3, openAllLabel, layout.NewSpacer(), openAllCheck)
 
-	c := container.NewVBox(c1, c2, widget.NewSeparator(), c0, c3, c4, c5, c6, c7)
+	c := container.NewVBox(c1, c2, widget.NewSeparator(), c0, c3, c4, c5, c6, c7, c8)
 	myWindow.SetContent(c)			// 创建导航
 	myWindow.ShowAndRun()			// 事件循环
 }
