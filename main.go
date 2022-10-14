@@ -45,6 +45,20 @@ func main(){
 	createApp()
 }
 
+//var hookCode = []byte{
+//	0x81,0xC6,0xF4,0x01,0x00,0x00,
+//	0x89,0xB7,0x78,0x55,0x00,0x00,
+//	0xE9,0x90,0x90,0x90,0x90,0x90,
+//}
+//
+//func hook(hd windows.Handle, baseAddr uintptr) {
+//	var kernel32=syscall.MustLoadDLL("kernel32.dll")
+//	var VirtualAllocEx = kernel32.MustFindProc("VirtualAllocEx")
+//
+//	r1,_,err := VirtualAllocEx.Call(uintptr(hd), uintptr(0),0x100,windows.MEM_COMMIT, windows.PAGE_EXECUTE_READWRITE)
+//	fmt.Printf("申请内存地址为：0x%X %v\n", r1, err)
+//}
+
 // 锁定末日蘑CD，默认值3000,30秒
 func lockDoomCD(hd windows.Handle, baseAddr uintptr)  {
 	data := []byte{0x90, 0x90, 0x90, 0x90, 0x90, 0x90}
