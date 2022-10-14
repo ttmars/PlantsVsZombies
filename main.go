@@ -345,7 +345,7 @@ func createApp()  {
 	})
 	c6 := container.NewGridWithColumns(3, lockMagneticLabel, layout.NewSpacer(), lockMagneticCheck)
 
-	lockCannonLabel := widget.NewLabel("加农炮零冷却")
+	lockCannonLabel := widget.NewLabel("加农炮无CD")
 	lockCannonCheck := widget.NewCheck("开启", func(b bool) {
 		if b {
 			lockCannonCD(handle, baseAddr)
