@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"unsafe"
 )
 
@@ -42,22 +43,112 @@ func main(){
 	fmt.Println("句柄:",handle)
 	fmt.Printf("基址:0x%X\n", baseAddr)
 
+	//hook2(handle, baseAddr)
 	createApp()
 }
 
-//var hookCode = []byte{
-//	0x81,0xC6,0xF4,0x01,0x00,0x00,
-//	0x89,0xB7,0x78,0x55,0x00,0x00,
-//	0xE9,0x90,0x90,0x90,0x90,0x90,
-//}
-//
-//func hook(hd windows.Handle, baseAddr uintptr) {
-//	var kernel32=syscall.MustLoadDLL("kernel32.dll")
-//	var VirtualAllocEx = kernel32.MustFindProc("VirtualAllocEx")
-//
-//	r1,_,err := VirtualAllocEx.Call(uintptr(hd), uintptr(0),0x100,windows.MEM_COMMIT, windows.PAGE_EXECUTE_READWRITE)
-//	fmt.Printf("申请内存地址为：0x%X %v\n", r1, err)
-//}
+func printByteArr(msg string, arr []byte)  {
+	fmt.Printf("%s:", msg)
+	for _,v := range arr {
+		fmt.Printf("0x%X ", v)
+	}
+}
+
+// 秒杀
+func seckill(hd windows.Handle, baseAddr uintptr)  {
+	hook1(hd, baseAddr)
+	hook2(hd, baseAddr)
+}
+
+func unseckill(hd windows.Handle, baseAddr uintptr)  {
+	unhook1(hd, baseAddr)
+	unhook2(hd, baseAddr)
+}
+
+// 秒血
+func hook1(hd windows.Handle, baseAddr uintptr) {
+	var kernel32=syscall.MustLoadDLL("kernel32.dll")
+	var VirtualAllocEx = kernel32.MustFindProc("VirtualAllocEx")
+	curAddrOff := uintptr(0x14D0C4)
+	nextAddrOff := uintptr(0x14D0CA)
+	hookCode := []byte{
+		0xC7, 0x87, 0xC8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0xE9,0x90,0x90,0x90,0x90,
+	}
+
+	// 1.进程句柄 2.指定申请的内存地址，这里不指定，随机 3.申请的内存长度 4、5.内存类型
+	newMem,_,err := VirtualAllocEx.Call(uintptr(hd), uintptr(0),uintptr(len(hookCode)),windows.MEM_COMMIT, windows.PAGE_EXECUTE_READWRITE)
+	fmt.Printf("申请内存地址为：0x%X err:%v\n", newMem, err)
+
+	jmpNextOffset := (baseAddr+nextAddrOff)-(newMem+uintptr(len(hookCode))-5)-5		// 第一个5表示0xE9+四字节地址，第二个5是因为jmp指令的机器码用5个字节表示
+	NextOffsetBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(NextOffsetBytes, uint32(jmpNextOffset))
+	hookCode[len(hookCode)-1] = NextOffsetBytes[3]
+	hookCode[len(hookCode)-2] = NextOffsetBytes[2]
+	hookCode[len(hookCode)-3] = NextOffsetBytes[1]
+	hookCode[len(hookCode)-4] = NextOffsetBytes[0]
+	writeNBytes(hd, newMem, hookCode)
+	printByteArr("写入hookcode", hookCode)
+	///////////////////////
+	//oldBytes := []byte{0x89,0xAF,0xC8,0x00,0x00,0x00}
+	jmpOffset := newMem-(baseAddr+curAddrOff)-5
+	offsetBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(offsetBytes, uint32(jmpOffset))
+	newBytes := []byte{0xE9}
+	newBytes = append(newBytes, offsetBytes...)
+	newBytes = append(newBytes, []byte{0x90}...)
+	writeNBytes(hd, baseAddr+curAddrOff, newBytes)
+	printByteArr("写入newBytes", newBytes)
+}
+
+func unhook1(hd windows.Handle, baseAddr uintptr) {
+	curAddrOff := uintptr(0x14D0C4)
+	oldBytes := []byte{0x89,0xAF,0xC8,0x00,0x00,0x00}
+	writeNBytes(hd, baseAddr+curAddrOff, oldBytes)
+}
+
+// 秒甲
+func hook2(hd windows.Handle, baseAddr uintptr) {
+	var kernel32=syscall.MustLoadDLL("kernel32.dll")
+	var VirtualAllocEx = kernel32.MustFindProc("VirtualAllocEx")
+	curAddrOff := uintptr(0x14CDDA)
+	nextAddrOff := uintptr(0x14CDE0)
+	hookCode := []byte{
+		0xC7, 0x85, 0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0xE9,0x90,0x90,0x90,0x90,
+	}
+
+	// 1.进程句柄 2.指定申请的内存地址，这里不指定，随机 3.申请的内存长度 4、5.内存类型
+	newMem,_,err := VirtualAllocEx.Call(uintptr(hd), uintptr(0),uintptr(len(hookCode)),windows.MEM_COMMIT, windows.PAGE_EXECUTE_READWRITE)
+	fmt.Printf("申请内存地址为：0x%X err:%v\n", newMem, err)
+
+	jmpNextOffset := (baseAddr+nextAddrOff)-(newMem+uintptr(len(hookCode))-5)-5		// 第一个5表示0xE9+四字节地址，第二个5是因为jmp指令的机器码用5个字节表示
+	NextOffsetBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(NextOffsetBytes, uint32(jmpNextOffset))
+	hookCode[len(hookCode)-1] = NextOffsetBytes[3]
+	hookCode[len(hookCode)-2] = NextOffsetBytes[2]
+	hookCode[len(hookCode)-3] = NextOffsetBytes[1]
+	hookCode[len(hookCode)-4] = NextOffsetBytes[0]
+	writeNBytes(hd, newMem, hookCode)
+	printByteArr("写入hookcode", hookCode)
+	///////////////////////
+	//oldBytes := []byte{0x89, 0x8D, 0xD0, 0x00, 0x00, 0x00}
+	jmpOffset := newMem-(baseAddr+curAddrOff)-5
+	offsetBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(offsetBytes, uint32(jmpOffset))
+	newBytes := []byte{0xE9}
+	newBytes = append(newBytes, offsetBytes...)
+	newBytes = append(newBytes, []byte{0x90}...)
+	writeNBytes(hd, baseAddr+curAddrOff, newBytes)
+	printByteArr("写入newBytes", newBytes)
+}
+
+func unhook2(hd windows.Handle, baseAddr uintptr) {
+	curAddrOff := uintptr(0x14CDDA)
+	oldBytes := []byte{0x89, 0x8D, 0xD0, 0x00, 0x00, 0x00}
+	writeNBytes(hd, baseAddr+curAddrOff, oldBytes)
+}
+
 
 // 锁定末日蘑CD，默认值3000,30秒
 func lockDoomCD(hd windows.Handle, baseAddr uintptr)  {
@@ -232,7 +323,7 @@ func writeNBytes(hd windows.Handle, addr uintptr, data []byte) {
 	if err != nil {
 		log.Println("写入内存失败！")
 	}
-	fmt.Printf("成功写入%d个字节\n", writeSize)
+	fmt.Printf("\n成功写入%d个字节\n", writeSize)
 }
 
 // 根据基址和偏移读取实际的动态地址
@@ -380,6 +471,17 @@ func createApp()  {
 	})
 	c8 := container.NewGridWithColumns(3, lockDoomLabel, layout.NewSpacer(), lockDoomCheck)
 
+	// 秒杀
+	seckillLabel := widget.NewLabel("秒杀")
+	seckillCheck := widget.NewCheck("开启", func(b bool) {
+		if b {
+			seckill(handle, baseAddr)
+		}else {
+			unseckill(handle, baseAddr)
+		}
+	})
+	c9 := container.NewGridWithColumns(3, seckillLabel, layout.NewSpacer(), seckillCheck)
+
 	// 一键开启/关闭
 	openAllLabel := widget.NewLabel("一键开启")
 	openAllCheck := widget.NewCheck("开启", func(b bool) {
@@ -390,6 +492,7 @@ func createApp()  {
 			lockMagneticCheck.SetChecked(true)
 			lockCannonCheck.SetChecked(true)
 			lockDoomCheck.SetChecked(true)
+			seckillCheck.SetChecked(true)
 		}else {
 			CDCheck.SetChecked(false)
 			lockSunshineCheck.SetChecked(false)
@@ -397,11 +500,12 @@ func createApp()  {
 			lockMagneticCheck.SetChecked(false)
 			lockCannonCheck.SetChecked(false)
 			lockDoomCheck.SetChecked(false)
+			seckillCheck.SetChecked(false)
 		}
 	})
 	c0 := container.NewGridWithColumns(3, openAllLabel, layout.NewSpacer(), openAllCheck)
 
-	c := container.NewVBox(c1, c2, widget.NewSeparator(), c0, c3, c4, c5, c6, c7, c8)
+	c := container.NewVBox(c1, c2, widget.NewSeparator(), c0, c3, c4, c5, c6, c7, c8, c9)
 	myWindow.SetContent(c)			// 创建导航
 	myWindow.ShowAndRun()			// 事件循环
 }
