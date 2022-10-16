@@ -430,7 +430,7 @@ func createApp()  {
 	})
 	c4 := container.NewGridWithColumns(3, lockSunshineLabel, layout.NewSpacer(), lockSunshineCheck)
 
-	lockBloodLabel := widget.NewLabel("植物锁血")
+	lockBloodLabel := widget.NewLabel("无敌锁血")
 	lockBloodCheck := widget.NewCheck("开启", func(b bool) {
 		if b {
 			lockPlantsBlood(handle, baseAddr)
@@ -472,7 +472,7 @@ func createApp()  {
 	c8 := container.NewGridWithColumns(3, lockDoomLabel, layout.NewSpacer(), lockDoomCheck)
 
 	// 秒杀
-	seckillLabel := widget.NewLabel("秒杀")
+	seckillLabel := widget.NewLabel("一击秒杀")
 	seckillCheck := widget.NewCheck("开启", func(b bool) {
 		if b {
 			seckill(handle, baseAddr)
