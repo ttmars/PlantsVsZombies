@@ -23,6 +23,8 @@ var (
 	handle windows.Handle
 	baseAddr uintptr
 	err error
+	kernel32 = syscall.MustLoadDLL("kernel32.dll")
+	VirtualAllocEx = kernel32.MustFindProc("VirtualAllocEx")
 )
 
 func init()  {
@@ -67,8 +69,6 @@ func unseckill(hd windows.Handle, baseAddr uintptr)  {
 
 // 秒血
 func hook1(hd windows.Handle, baseAddr uintptr) {
-	var kernel32=syscall.MustLoadDLL("kernel32.dll")
-	var VirtualAllocEx = kernel32.MustFindProc("VirtualAllocEx")
 	curAddrOff := uintptr(0x14D0C4)
 	nextAddrOff := uintptr(0x14D0CA)
 	hookCode := []byte{
@@ -109,8 +109,6 @@ func unhook1(hd windows.Handle, baseAddr uintptr) {
 
 // 秒甲
 func hook2(hd windows.Handle, baseAddr uintptr) {
-	var kernel32=syscall.MustLoadDLL("kernel32.dll")
-	var VirtualAllocEx = kernel32.MustFindProc("VirtualAllocEx")
 	curAddrOff := uintptr(0x14CDDA)
 	nextAddrOff := uintptr(0x14CDE0)
 	hookCode := []byte{
